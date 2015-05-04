@@ -7,51 +7,60 @@ require 'open-uri'
 require 't'
 require 'pry'
 
+DOC_ROOT = 'http://www.jcdh.org/EH/FnL/'
+
+# Define inspection struct
+InspectionReport = Struct.new(:inspection_date, :score, :establishment, :link) do
+  def to_tweet
+    "#{establishment} scored #{score} on #{inspection_date} #{link}"
+  end
+
+  def to_s
+    "#{score} :: #{inspection_date} :: #{establishment} :: #{link}"
+  end
+end
+
 # get most recent sub-85 inspection record date
-last_inspection_date = Date.today
+last_inspection_date = nil
 begin
-  last_inspection_date = Date.strptime(File.open('last_inspection_hit.txt', &:readline).strip, '%m/%d/%Y')
+  last_inspection_date = Date.strptime(File.open('last_inspection_date.txt', &:readline).strip, '%Y-%m-%d')
 rescue
-  puts 'There was a problem reading the last inspection hit date. Make sure the last_inspection_hit.txt file exists and that it contains the date of the last hit that was recorded.'
+  puts 'There was a problem reading the last inspection hit date. Make sure the last_inspection_hit.txt file exists and that it contains the date (yyyy-mm-dd) of the last hit that was recorded.'
   exit 1
 end
 
-DOC_ROOT = 'http://www.jcdh.org/EH/FnL/'
 doc = Nokogiri::HTML(open(DOC_ROOT + 'FnL03.aspx'))
-
 score_table = doc.search("table[@id='ctl00_BodyContent_gvFoodScores']")
 rows = score_table.search('tr')
 
-rows.reverse.each_with_index do |tr,i|
-  # get inspection score
-  score = tr.children[5].text
-
+inspections = []
+rows.each_with_index do |tr, i|
   # skip header row
-  next if score == 'Score'
+  next if i == 0
 
-  # get inspection date
-  inspection_date = tr.children[6].text
+  score = tr.children[5].text.to_i
+  inspection_date = Date.strptime(tr.children[6].text, '%m/%d/%Y')
+  establishment = tr.children[2].text
+  link = DOC_ROOT + tr.children[5].search('a').attribute('href').value
+  inspections << InspectionReport.new(inspection_date, score, establishment, link)
+end
 
-  # if new record
-  current_inspection_date = Date.strptime(inspection_date, '%m/%d/%Y')
-  if current_inspection_date > last_inspection_date
-    # if less than 85 and not the header row
-    if score.to_i < 85
-      # get establishment
-      establishment = tr.children[2].text
+# sort in ascending order
+inspections.sort! { |a,b| a.inspection_date <=> b.inspection_date }
 
-      # get inspection report link
-      link = DOC_ROOT + tr.children[5].search('a').attribute('href').value
+# tweet sub-85 inspections
+inspections.each do |inspection|
+  if (inspection.inspection_date > last_inspection_date) && (inspection.score < 85)
+    puts inspection.to_s
 
-      puts "#{score} :: #{inspection_date} :: #{establishment} :: #{link}"
-
-      # post tweet
-      cmd = "t update \"#{establishment} scored #{score} on #{inspection_date} #{link}\""
-      system(cmd)
-
-      # write hit date to file
-      cmd = "echo #{inspection_date} > last_inspection_hit.txt"
-      system(cmd)
-    end
+    # post tweet
+    cmd = "t update \"#{inspection.to_tweet}\""
+    puts cmd
+    system(cmd)
   end
 end
+
+# write last inspection date to file
+cmd = "echo #{inspections.last.inspection_date} > last_inspection_date.txt"
+puts cmd
+system(cmd)
