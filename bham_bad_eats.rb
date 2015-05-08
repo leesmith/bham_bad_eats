@@ -10,13 +10,13 @@ require 'pry'
 DOC_ROOT = 'http://www.jcdh.org/EH/FnL/'
 
 # Define inspection struct
-InspectionReport = Struct.new(:inspection_date, :score, :establishment, :link) do
+InspectionReport = Struct.new(:inspection_date, :score, :establishment, :link, :permit_number, :inspection_number) do
   def to_tweet
     "#{establishment} scored #{score} on #{inspection_date} #{link}"
   end
 
   def to_s
-    "#{score} :: #{inspection_date} :: #{establishment} :: #{link}"
+    "#{score} :: #{inspection_date} :: #{establishment} :: #{permit_number} :: #{inspection_number} :: #{link}"
   end
 end
 
@@ -41,8 +41,10 @@ rows.each_with_index do |tr, i|
   score = tr.children[5].text.to_i
   inspection_date = Date.strptime(tr.children[6].text, '%m/%d/%Y')
   establishment = tr.children[2].text
-  link = DOC_ROOT + tr.children[5].search('a').attribute('href').value
-  inspections << InspectionReport.new(inspection_date, score, establishment, link)
+  permit_number = tr.children[5].search('a').attribute('href').value[/PermitNbr=\d+/].split('=').last
+  inspection_number = tr.children[5].search('a').attribute('href').value[/InspNbr=\d+/].split('=').last
+  link = "#{DOC_ROOT}FnL04.aspx?PermitNbr=#{permit_number}&InspNbr=#{inspection_number}"
+  inspections << InspectionReport.new(inspection_date, score, establishment, link, permit_number, inspection_number)
 end
 
 # sort in ascending order
