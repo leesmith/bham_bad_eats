@@ -11,6 +11,10 @@ DOC_ROOT = 'http://www.jcdh.org/EH/FnL/'
 
 # Define inspection struct
 InspectionReport = Struct.new(:inspection_date, :score, :establishment, :link, :permit_number, :inspection_number) do
+  def to_a
+    [inspection_date,score,establishment,link,permit_number,inspection_number]
+  end
+
   def to_tweet
     "#{establishment} scored #{score} on #{inspection_date} #{link}"
   end
@@ -20,13 +24,17 @@ InspectionReport = Struct.new(:inspection_date, :score, :establishment, :link, :
   end
 end
 
-# get most recent sub-85 inspection record date
-last_inspection_date = nil
-begin
-  last_inspection_date = Date.strptime(File.open('last_inspection_date.txt', &:readline).strip, '%Y-%m-%d')
-rescue
-  puts 'There was a problem reading the last inspection hit date. Make sure the last_inspection_hit.txt file exists and that it contains the date (yyyy-mm-dd) of the last hit that was recorded.'
-  exit 1
+# build inspection history
+inspection_history = []
+CSV.foreach('history.csv') do |row|
+  inspection_date = row[0]
+  inspection_date = Date.strptime(row[0], '%Y-%m-%d')
+  score = row[1].to_i
+  establishment = row[2]
+  link = row[3]
+  permit_number = row[4].to_i
+  inspection_number = row[5].to_i
+  inspection_history << InspectionReport.new(inspection_date, score, establishment, link, permit_number, inspection_number)
 end
 
 doc = Nokogiri::HTML(open(DOC_ROOT + 'FnL03.aspx'))
@@ -41,8 +49,8 @@ rows.each_with_index do |tr, i|
   score = tr.children[5].text.to_i
   inspection_date = Date.strptime(tr.children[6].text, '%m/%d/%Y')
   establishment = tr.children[2].text
-  permit_number = tr.children[5].search('a').attribute('href').value[/PermitNbr=\d+/].split('=').last
-  inspection_number = tr.children[5].search('a').attribute('href').value[/InspNbr=\d+/].split('=').last
+  permit_number = tr.children[5].search('a').attribute('href').value[/PermitNbr=\d+/].split('=').last.to_i
+  inspection_number = tr.children[5].search('a').attribute('href').value[/InspNbr=\d+/].split('=').last.to_i
   link = "#{DOC_ROOT}FnL04.aspx?PermitNbr=#{permit_number}&InspNbr=#{inspection_number}"
   inspections << InspectionReport.new(inspection_date, score, establishment, link, permit_number, inspection_number)
 end
@@ -51,8 +59,10 @@ end
 inspections.sort! { |a,b| a.inspection_date <=> b.inspection_date }
 
 # tweet sub-85 inspections
+sub_85_inspections = []
 inspections.each do |inspection|
-  if (inspection.inspection_date > last_inspection_date) && (inspection.score < 85)
+  if (!inspection_history.include?(inspection)) && (inspection.score < 85)
+    sub_85_inspections << inspection
     puts inspection.to_s
 
     # post tweet
@@ -62,7 +72,13 @@ inspections.each do |inspection|
   end
 end
 
-# write last inspection date to file
-cmd = "echo #{inspections.last.inspection_date} > last_inspection_date.txt"
-puts cmd
-system(cmd)
+# write sub_85_inspections to history
+if sub_85_inspections.count > 0
+  CSV.open('history.csv','a+') do |csv|
+    sub_85_inspections.each do |hit|
+      csv << hit.to_a
+    end
+  end
+end
+
+exit 0
