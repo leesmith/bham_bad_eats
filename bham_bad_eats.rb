@@ -7,6 +7,7 @@ require 'open-uri'
 require 't'
 require 'pry'
 
+puts "========== #{Time.now} Start =========="
 DOC_ROOT = 'http://www.jcdh.org/EH/FnL/'
 
 # Define inspection struct
@@ -81,4 +82,5 @@ if sub_85_inspections.count > 0
   end
 end
 
+puts "========== #{Time.now} Done! =========="
 exit 0
