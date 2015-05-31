@@ -66,6 +66,10 @@ inspections.each do |inspection|
     sub_85_inspections << inspection
     puts inspection.to_s
 
+    # specify twitter acount to use
+    cmd = "t set active Bham_Bad_Eats"
+    system(cmd)
+
     # post tweet
     cmd = "t update \"#{inspection.to_tweet}\""
     puts cmd
