@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
-require 'nokogiri'
+require 'bundler/setup'
+Bundler.require
+
 require 'csv'
 require 'open-uri'
-require 't'
-require 'pry'
 
 puts "========== #{Time.now} Start =========="
 DOC_ROOT = 'http://www.jcdh.org/EH/FnL/'
