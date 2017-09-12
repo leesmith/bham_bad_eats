@@ -47,14 +47,14 @@ rows.each_with_index do |tr, i|
   # skip header row
   next if i == 0
   # skip footer row
-  break if i == (rows.size - 2)
+  # break if i == (rows.size - 2)
 
-  score = tr.children[1].text.to_i
-  permit_number = tr.children[1].search('a').attribute('href').value[/PermitNbr=\d+/].split('=').last.to_i
-  inspection_number = tr.children[1].search('a').attribute('href').value[/InspNbr=\d+/].split('=').last.to_i
-  link = DOC_ROOT + tr.children[1].search('a').attribute('href').value
-  establishment = tr.children[2].text.strip.gsub(/\s+/, ' ')
-  inspection_date = Date.strptime(tr.children[3].text, '%m/%d/%Y')
+  permit_number = tr.children[1].text.to_i
+  score = tr.children[2].text.to_i
+  inspection_number = tr.children[2].search('a').attribute('href').value[/InspNbr=\d+/].split('=').last.to_i
+  link = DOC_ROOT + tr.children[2].search('a').attribute('href').value
+  establishment = tr.children[3].text.strip.gsub(/\s+/, ' ')
+  inspection_date = Date.strptime(tr.children[4].text, '%m/%d/%Y')
   inspections << InspectionReport.new(inspection_date, score, establishment, link, permit_number, inspection_number)
 end
 
