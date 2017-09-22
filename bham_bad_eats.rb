@@ -46,8 +46,9 @@ inspections = []
 rows.each_with_index do |tr, i|
   # skip header row
   next if i == 0
-  # skip footer row
-  # break if i == (rows.size - 2)
+
+  # skip any row with unknown data format
+  next if tr.children.search('td').count != 5
 
   permit_number = tr.children[1].text.to_i
   score = tr.children[2].text.to_i
